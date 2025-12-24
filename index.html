@@ -48,6 +48,34 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
+        /* スマホ専用の2段構成修正 */
+        @media (max-width: 600px) {
+            body { padding-top: 100px; } /* ヘッダーが広がる分下げる */
+            #fixed-header {
+                height: 100px;
+                flex-direction: column;
+                justify-content: space-evenly;
+                padding: 5px 10px;
+            }
+            .header-center {
+                position: static !important;
+                transform: none !important;
+                order: 1; /* 1段目にタイトル */
+                font-size: 1.1em;
+            }
+            .header-left {
+                order: 2; /* 2段目にボタン */
+                width: 100%;
+                justify-content: center;
+            }
+            .header-right {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+            }
+            #update-bar { top: 100px !important; }
+        }
+
         #update-bar {
             position: fixed;
             top: 60px;
@@ -88,7 +116,6 @@
             align-items: center;
         }
 
-        /* レジボタンのデザイン調整 */
         .cashier-link-btn {
             background: rgba(255,255,255,0.15);
             border: 1px solid rgba(255,255,255,0.3);
@@ -172,7 +199,7 @@
         .map-pin img { width: 100%; height: 100%; object-fit: cover; }
 
         .store-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 0 12px; }
-        @media (max-width: 900px) { .store-grid { grid-template-columns: repeat(2, 1fr); } .header-center { font-size: 1.0em; } }
+        @media (max-width: 900px) { .store-grid { grid-template-columns: repeat(2, 1fr); } }
 
         .store-card { background: white; border-radius: 12px; overflow: hidden; cursor: pointer; border: 1px solid #e2e8f0; display: flex; flex-direction: column; position: relative; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
         .store-img-wrapper { width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #eee; }
@@ -191,6 +218,13 @@
         .home-left { flex: 1; background: rgba(241, 245, 249, 0.7); display: flex; align-items: center; justify-content: center; border-right: 1px solid #e2e8f0; padding: 20px; }
         .home-left img { max-width: 100%; max-height: 80vh; object-fit: contain; }
         .home-right { flex: 1; padding: 40px; display: flex; flex-direction: column; justify-content: center; background: rgba(255, 255, 255, 0.7); }
+        
+        @media (max-width: 768px) {
+            .home-hero { flex-direction: column; }
+            .home-left, .home-right { flex: none; width: 100%; padding: 20px; }
+            .theme-title { font-size: 2em !important; }
+        }
+
         .theme-label { color: #94a3b8; font-weight: bold; letter-spacing: 0.2em; margin-bottom: 10px; }
         .theme-title { font-size: 3em; font-weight: 900; color: var(--primary); margin: 0 0 20px 0; line-height: 1.2; }
         .theme-box { border: 3px dashed var(--primary); padding: 20px; border-radius: var(--radius); margin-bottom: 30px; }
@@ -201,7 +235,7 @@
         .btn-primary { background: var(--primary); color: white; }
 
         .timetable-map-container { margin: 0 15px 30px 15px; background: white; border-radius: var(--radius); overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
-        .calendar-wrapper { display: flex; justify-content: center; padding: 0 15px; }
+        .calendar-wrapper { display: flex; justify-content: center; padding: 0 15px; overflow-x: auto; }
         .calendar { display: flex; background: #fff; border-radius: var(--radius); border: 1px solid #e2e8f0; overflow: hidden; position: relative; width: fit-content; }
         .calendar-grid { display: grid; }
         
@@ -217,20 +251,10 @@
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
         .modal-content { background: #fff; padding: 25px; border-radius: 24px; width: 100%; max-width: 440px; position: relative; max-height: 90vh; overflow-y: auto; }
 
-        /* モーダル内レジボタン用 */
         .cashier-open-btn {
-            display: block;
-            width: 100%;
-            padding: 12px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            margin-top: 15px;
-            cursor: pointer;
-            text-align: center;
-            text-decoration: none;
+            display: block; width: 100%; padding: 12px; background: var(--primary); color: white;
+            border: none; border-radius: 8px; font-weight: bold; margin-top: 15px; cursor: pointer;
+            text-align: center; text-decoration: none;
         }
     </style>
 </head>
@@ -302,15 +326,13 @@
             <div id="m-img-container" style="margin: 15px 0;"></div>
             <p id="m-info" style="font-weight:bold; color: #be185d; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; white-space: pre-wrap;"></p>
             <p id="m-desc" style="white-space:pre-wrap; line-height:1.7;"></p>
-            <div id="m-cashier-container"></div>
         </div>
     </div>
 
     <script>
         const API_URL = 'https://script.google.com/macros/s/AKfycbwTnET9tIVfvIvJxV8y-dEzQvAqt-Y24ynhO_SEqw5h5InxvVZ8qG6EmmMQnn1VBE1U/exec';
         
-        // 統合型レジHTMLのパス (GitHub Pages等のURLに書き換えてください)
-        const CASHIER_URL = 'https://potetaro33-hub.github.io/01/'; 
+        const CASHIER_URL = 'cashier.html'; 
         const CASHIER_PW = "7979"; 
 
         const FLOOR_MAPS = { '1': 'Map_1.png', '2': 'Map_2.png', '3': 'Map_3.png' };
@@ -319,7 +341,6 @@
 
         let cache = { stores: [], timetable: [], announcement: "" };
 
-        // 共通レジページを開く
         function tryOpenCashier() {
             const pw = prompt("パスワードを入力してください（生徒専用）");
             if (pw === CASHIER_PW) {
@@ -444,7 +465,6 @@
             document.getElementById('m-img-container').innerHTML = '';
             document.getElementById('m-info').textContent = `📍場所: ${ev[0]}\n⏰時間: ${s.getHours()}:${String(s.getMinutes()).padStart(2,'0')} 〜 ${e.getHours()}:${String(e.getMinutes()).padStart(2,'0')}`;
             document.getElementById('m-desc').textContent = ev[4] || '詳細なし';
-            document.getElementById('m-cashier-container').innerHTML = ''; // イベントモーダルではレジボタンを表示しない
             document.getElementById('modal').style.display = 'flex';
         }
 
@@ -453,14 +473,6 @@
             document.getElementById('m-img-container').innerHTML = s[4] ? `<img src="${s[4]}" style="width:100%; border-radius:12px;">` : '';
             document.getElementById('m-info').textContent = `📍場所: ${s[0]}F / 🚥混雑: ${s[3]}`;
             document.getElementById('m-desc').textContent = s[2] || '紹介文なし';
-            
-            // 店舗モーダルにのみレジボタンを追加
-            document.getElementById('m-cashier-container').innerHTML = `
-                <button class="cashier-open-btn" onclick="tryOpenCashier()">
-                    レジ管理画面へ (生徒専用)
-                </button>
-            `;
-            
             document.getElementById('modal').style.display = 'flex';
         }
 
