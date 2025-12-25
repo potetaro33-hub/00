@@ -216,6 +216,31 @@
             transition: border-color 0.3s ease;
         }
         .map-pin img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* イベント会場用ピンのスタイル（ラベル付き） */
+        .event-pin {
+            position: absolute;
+            background: var(--accent);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: bold;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 110;
+        }
+        .event-pin::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 6px solid var(--accent);
+        }
 
         .store-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 0 12px; }
         @media (max-width: 900px) { .store-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -254,7 +279,7 @@
         .btn-primary { background: var(--primary); color: white; }
 
         /* タイムテーブル周り */
-        .timetable-map-container { margin: 0 15px 30px 15px; background: white; border-radius: var(--radius); overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
+        .timetable-map-container { position: relative; margin: 0 15px 30px 15px; background: white; border-radius: var(--radius); overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
         .calendar-wrapper { display: flex; justify-content: center; padding: 0 15px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .calendar { display: flex; background: #fff; border-radius: var(--radius); border: 1px solid #e2e8f0; overflow: hidden; position: relative; width: fit-content; }
         .calendar-grid { display: grid; }
@@ -328,9 +353,9 @@
             <span>📢</span><span class="ann-text"></span>
         </div>
         <h1 class="view-title">イベントスケジュール</h1>
-        <div class="timetable-map-container">
-            <img src="https://www.shonan-fill.com/_system/wp-content/uploads/2025/11/map1F_251101%EF%BC%88%E3%82%BD%E3%83%95%E3%83%88%E3%83%90%E3%83%B3%E3%82%AF%E3%82%B5%E3%83%86%E3%83%A9%E3%82%A4%E3%83%88%E8%BF%BD%E5%8A%A0%EF%BC%89.png" class="floor-map-img" alt="全体マップ">
-        </div>
+        <div id="timetable-map" class="timetable-map-container">
+            <img src="Map_Events.png" class="floor-map-img" alt="全体マップ">
+            </div>
         <div class="calendar-wrapper"><div class="calendar"><div id="timetable-grid" class="calendar-grid"></div></div></div>
     </div>
 
@@ -351,6 +376,13 @@
         const FLOOR_MAPS = { '1': 'Map_1.png', '2': 'Map_2.png', '3': 'Map_3.png' };
         const START_H = 9, SCALE = 1.5, GAP = 3;
         const VENUE_THEMES = { '体育館': { bg: '#FFCDD2', border: '#E53935' }, '中庭ステージ': { bg: '#FFF9C4', border: '#FBC02D' }, '武道場': { bg: '#C8E6C9', border: '#43A047' } };
+
+        // イベント会場のピン設定 (名前, left%, top%)
+        const EVENT_LOCATIONS = [
+            { name: '体育館', left: 85, top: 85 },
+            { name: '中庭ステージ', left: 4.5, top: 57 },
+            { name: '武道場', left: 9, top: 13 }
+        ];
 
         let cache = { stores: [], timetable: [], announcement: "" };
 
@@ -446,6 +478,21 @@
             const grid = document.getElementById('timetable-grid');
             const venues = [...new Set(data.map(r => r[0]))];
             
+            // イベントマップにピンを描画
+            const mapContainer = document.getElementById('timetable-map');
+            // 既存のピンを削除（imgタグ以外を削除）
+            const pins = mapContainer.querySelectorAll('.event-pin');
+            pins.forEach(p => p.remove());
+            // 新しいピンを追加
+            EVENT_LOCATIONS.forEach(loc => {
+                const pin = document.createElement('div');
+                pin.className = 'event-pin';
+                pin.style.left = `${loc.left}%`;
+                pin.style.top = `${loc.top}%`;
+                pin.textContent = loc.name;
+                mapContainer.appendChild(pin);
+            });
+
             // CSS変数から列幅を取得
             const colWidth = getComputedStyle(document.documentElement).getPropertyValue('--col-width').trim();
             const timeColWidth = (window.innerWidth <= 600) ? "50px" : "80px";
