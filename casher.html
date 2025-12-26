@@ -36,7 +36,6 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
-        /* スマホ専用の2段構成修正 */
         @media (max-width: 600px) {
             body { padding-top: 100px; }
             #fixed-header {
@@ -47,18 +46,8 @@
             }
         }
 
-        .header-title {
-            font-weight: 900;
-            font-size: 1.2em;
-            letter-spacing: 0.1em;
-        }
-
-        .header-right {
-            position: absolute;
-            right: 15px;
-            display: flex;
-            align-items: center;
-        }
+        .header-title { font-weight: 900; font-size: 1.2em; letter-spacing: 0.1em; }
+        .header-right { position: absolute; right: 15px; display: flex; align-items: center; }
 
         #sync-spinner {
             width: 20px;
@@ -82,6 +71,7 @@
             padding: 25px; 
             min-height: 450px; 
             margin-bottom: 40px;
+            box-sizing: border-box;
         }
 
         .view-header {
@@ -92,18 +82,13 @@
             position: relative;
         }
 
-        .view-header h2 {
-            font-size: 1.1rem;
-            margin: 0;
-            color: var(--primary);
-        }
-
+        .view-header h2 { font-size: 1.1rem; margin: 0; color: var(--primary); }
         .view { display: none; }
         .view.active { display: block; }
 
         select { width: 100%; padding: 15px; font-size: 1.1em; border-radius: 10px; border: 1px solid #ddd; margin-bottom: 20px; background: #fff; }
         
-        #product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        #product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; }
         
         .product-card { border: 1px solid #e2e8f0; border-radius: 15px; overflow: hidden; cursor: pointer; background: white; transition: 0.1s; user-select: none; }
         .product-card:active { transform: scale(0.95); background-color: #f0fdf4; }
@@ -115,6 +100,40 @@
         .p-price { color: var(--accent); font-weight: 900; font-size: 1.1rem; }
         .p-stock { font-size: 0.8em; color: #64748b; margin-top: 4px; }
         
+        /* ===== 購入ログエリア ===== */
+        .log-section {
+            margin-top: 30px;
+            border-top: 2px dashed #e2e8f0;
+            padding-top: 20px;
+        }
+        .log-title {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #64748b;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #sales-log {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 0.85rem;
+            border: 1px solid #e2e8f0;
+        }
+        .log-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #edf2f7;
+        }
+        .log-item:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; font-family: monospace; }
+        .log-name { font-weight: bold; color: var(--text); }
+
         .btn-action { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 1em; }
         .btn-blue { background: var(--primary); color: white; }
         .btn-gray { background: #e2e8f0; color: var(--text); }
@@ -146,7 +165,18 @@
 
         <div id="register-view" class="view">
             <div id="product-grid"></div>
-            <button class="btn-action btn-gray" style="margin-top:20px;" onclick="loadInventory()">在庫情報を同期</button>
+            
+            <button class="btn-action btn-gray" onclick="loadInventory()">最新在庫に更新</button>
+
+            <div class="log-section">
+                <div class="log-title">
+                    <span>最近の購入ログ</span>
+                    <span id="log-count" style="font-weight: normal; font-size: 0.8em;">0 件</span>
+                </div>
+                <div id="sales-log">
+                    <div style="color:#cbd5e1; text-align:center; padding: 20px 0;">まだ履歴はありません</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -154,6 +184,7 @@
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwMQxYShsVsnf8VEhBN6cbhht-C-_C31JEPZEp9x_XqQSIEz6fRdH7tKSfdOk3WAzgtaQ/exec'; 
     let currentSheetName = '';
     let inventoryData = [];
+    let salesLog = [];
 
     async function init() {
         try {
@@ -174,6 +205,9 @@
     }
 
     function showSelectionView() {
+        if(!confirm("ログがリセットされますがよろしいですか？")) return;
+        salesLog = [];
+        updateLogDisplay();
         document.getElementById('selection-view').classList.add('active');
         document.getElementById('register-view').classList.remove('active');
         document.getElementById('back-to-select').style.display = 'none';
@@ -220,26 +254,50 @@
         const item = inventoryData[index];
         if (item.stock <= 0) return;
 
+        // 在庫減算（ローカル）
         item.stock--;
         const stockEl = document.getElementById(`stock-${index}`);
         const cardEl = document.getElementById(`card-${index}`);
         stockEl.innerText = `在庫: ${item.stock}`;
+        if (item.stock <= 0) cardEl.classList.add('sold-out');
+
+        // ログに追加
+        const now = new Date();
+        const timeStr = now.getHours().toString().padStart(2, '0') + ":" + 
+                        now.getMinutes().toString().padStart(2, '0') + ":" + 
+                        now.getSeconds().toString().padStart(2, '0');
         
-        if (item.stock <= 0) {
-            cardEl.classList.add('sold-out');
-        }
+        salesLog.unshift({ name: item.name, time: timeStr });
+        updateLogDisplay();
 
         showSync(true);
-
+        // GASへ送信
         fetch(`${GAS_API_URL}?action=recordSale&sheetName=${encodeURIComponent(currentSheetName)}&row=${item.rowIndex}&name=${encodeURIComponent(item.name)}`)
             .then(res => res.json())
             .then(result => {
-                if (result.status !== "success") {
-                    alert("通信エラー: 更新に失敗しました。");
-                }
+                if (result.status !== "success") alert("通信エラー: サーバー側の更新に失敗しました。");
             })
             .catch(e => console.error("Sync Error:", e))
             .finally(() => showSync(false));
+    }
+
+    function updateLogDisplay() {
+        const logContainer = document.getElementById('sales-log');
+        const countEl = document.getElementById('log-count');
+        
+        countEl.innerText = `${salesLog.length} 件`;
+
+        if (salesLog.length === 0) {
+            logContainer.innerHTML = `<div style="color:#cbd5e1; text-align:center; padding: 20px 0;">まだ履歴はありません</div>`;
+            return;
+        }
+
+        logContainer.innerHTML = salesLog.map(log => `
+            <div class="log-item">
+                <span class="log-name">${log.name}</span>
+                <span class="log-time">${log.time}</span>
+            </div>
+        `).join('');
     }
 
     function showSync(show) {
