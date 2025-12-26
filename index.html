@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>沼津東 香陵祭ナビ</title>
+    <link rel="icon" href="favicon.png" type="image/png">
+    
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
@@ -217,7 +219,6 @@
         }
         .map-pin img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* イベント会場用ピンのスタイル */
         .event-pin {
             position: absolute;
             background: var(--accent);
@@ -378,7 +379,6 @@
         const START_H = 9, SCALE = 1.5, GAP = 3;
         const VENUE_THEMES = { '体育館': { bg: '#FFCDD2', border: '#E53935' }, '中庭ステージ': { bg: '#FFF9C4', border: '#FBC02D' }, '武道場': { bg: '#C8E6C9', border: '#43A047' } };
 
-        // イベント会場のピン設定 (名前, left%, top%, color)
         const EVENT_LOCATIONS = [
             { name: '体育館', left: 85, top: 85, color: '#ef4444' },
             { name: '中庭ステージ', left: 4.5, top: 57, color: '#f59e0b' },
@@ -386,18 +386,16 @@
         ];
 
         let cache = { stores: [], timetable: [], announcement: "" };
-        let failedAttempts = 0; // パスワード試行回数
+        let failedAttempts = 0;
 
         function tryOpenCashier() {
             if (failedAttempts >= 3) {
                 alert("⚠パスワードの入力回数上限に達しました。これ以上入力できません。");
                 return;
             }
-
             const pw = prompt(`パスワードを入力してください（生徒専用）\nあと ${3 - failedAttempts} 回入力可能です。`);
-            
             if (pw === CASHIER_PW) {
-                failedAttempts = 0; // 成功したらリセット
+                failedAttempts = 0;
                 window.open(CASHIER_URL, '_blank');
             } else if (pw !== null) {
                 failedAttempts++;
@@ -488,20 +486,13 @@
         }
 
         function scrollToVenue(venueName) {
-            // タイムテーブルエリアまで全体をスクロール
             const calendarArea = document.getElementById('calendar-scroll-target');
             calendarArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-            // 会場の列（会場ヘッダー）を探す
             const headers = document.querySelectorAll('.venue-header');
             let targetCol = null;
             headers.forEach(h => { if(h.textContent.trim() === venueName) targetCol = h.parentElement; });
-
             if (targetCol) {
-                // 横スクロール：該当の会場列が左端に来るように
-                calendarArea.scrollLeft = targetCol.offsetLeft - 80; // 80は時間軸の幅
-
-                // 縦スクロール：現在の時刻の位置へ
+                calendarArea.scrollLeft = targetCol.offsetLeft - 80;
                 const now = new Date(), m = (now.getHours() - START_H) * 60 + now.getMinutes();
                 if (m >= 0 && m < 480) {
                     window.scrollTo({
@@ -517,7 +508,6 @@
             const grid = document.getElementById('timetable-grid');
             const venues = [...new Set(data.map(r => r[0]))];
             
-            // イベントマップにピンを描画
             const mapContainer = document.getElementById('timetable-map');
             const pins = mapContainer.querySelectorAll('.event-pin');
             pins.forEach(p => p.remove());
@@ -529,22 +519,18 @@
                 pin.style.top = `${loc.top}%`;
                 if(loc.color) pin.style.backgroundColor = loc.color;
                 pin.textContent = loc.name;
-                // クリック時にスクロール実行
                 pin.onclick = () => scrollToVenue(loc.name);
                 
-                // 下の三角部分の色も設定
                 const style = document.createElement('style');
                 const pinId = "pin-" + loc.name.replace(/\s+/g, '');
                 pin.classList.add(pinId);
                 style.innerHTML = `.${pinId}::after { border-top-color: ${loc.color || 'var(--accent)'}; }`;
                 document.head.appendChild(style);
-
                 mapContainer.appendChild(pin);
             });
 
             const colWidth = getComputedStyle(document.documentElement).getPropertyValue('--col-width').trim();
             const timeColWidth = (window.innerWidth <= 600) ? "50px" : "80px";
-
             grid.style.gridTemplateColumns = `${timeColWidth} repeat(${venues.length}, ${colWidth})`;
             
             let html = `<div class="time-col"><div class="corner-cell"></div>`;
@@ -604,7 +590,6 @@
             setInterval(quickUpdate, 10000);
             setInterval(updateNowLine, 60000);
         }
-
         window.onload = init;
     </script>
 </body>
