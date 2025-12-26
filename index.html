@@ -51,8 +51,8 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
-        /* スマホ専用の調整 */
-        @media (max-width: 200px) {
+        /* ★ スマホ専用の2段構成調整 ★ */
+        @media (max-width: 600px) {
             body { padding-top: 100px; }
             #fixed-header {
                 height: 100px;
@@ -60,17 +60,24 @@
                 justify-content: space-evenly;
                 padding: 5px 10px;
             }
+            /* タイトル（香陵祭）を上段に */
             .header-center {
                 position: static !important;
                 transform: none !important;
                 order: 1;
                 font-size: 1.1em;
+                width: 100%;
+                text-align: center;
             }
+            /* ナビゲーションを下段に */
             .header-left {
                 order: 2;
                 width: 100%;
                 justify-content: center;
+                display: flex;
+                height: 40px;
             }
+            /* 生徒用レジボタンを右上に固定 */
             .header-right {
                 position: absolute;
                 top: 10px;
@@ -78,25 +85,14 @@
             }
             #update-bar { top: 100px !important; }
 
-            /* タイムテーブルのスマホ用列幅と余白調整 */
-            :root { 
-                --col-width: 110px;
-            }
-            .calendar-wrapper {
-                padding: 0 5px !important;
-            }
-            .time-col {
-                width: 50px !important;
-            }
-            .venue-header {
-                font-size: 0.8em;
-            }
-            .event strong {
-                font-size: 0.85em;
-                line-height: 1.2;
-            }
+            /* タイムテーブルのスマホ用調整 */
+            :root { --col-width: 110px; }
+            .calendar-wrapper { padding: 0 5px !important; }
+            .time-col { width: 50px !important; }
+            .venue-header { font-size: 0.8em; }
+            .event strong { font-size: 0.85em; line-height: 1.2; }
 
-            /* ★ スマホ版のピンサイズ縮小調整 ★ */
+            /* ピンのサイズ調整 */
             .map-pin {
                 width: 28px !important;
                 height: 28px !important;
@@ -331,12 +327,12 @@
     </div>
 
     <header id="fixed-header">
+        <div class="header-center">香陵祭</div>
         <div class="header-left">
             <button id="nav-home" class="nav-btn active-tab" onclick="switchTab('home')">ホーム</button>
             <button id="nav-stores" class="nav-btn" onclick="switchTab('stores')">マップ</button>
             <button id="nav-timetable" class="nav-btn" onclick="switchTab('timetable')">予定表</button>
         </div>
-        <div class="header-center">香陵祭</div>
         <div class="header-right">
             <button class="cashier-link-btn" onclick="tryOpenCashier()">🔒生徒用レジ🔒</button>
         </div>
