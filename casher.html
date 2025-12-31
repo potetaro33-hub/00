@@ -185,6 +185,7 @@
     let currentSheetName = '';
     let inventoryData = [];
     let salesLog = [];
+    let isSyncing = false; // 通信状態を管理するフラグ
 
     async function init() {
         try {
@@ -301,9 +302,20 @@
     }
 
     function showSync(show) {
+        isSyncing = show; // 通信中フラグを更新
         const spinner = document.getElementById('sync-spinner');
         if(spinner) spinner.style.display = show ? 'block' : 'none';
     }
+
+    // ★ ページ離脱防止の処理 ★
+    window.addEventListener('beforeunload', (event) => {
+        // 会計データ（salesLog）が存在する場合、またはサーバー同期（isSyncing）中の場合に警告
+        if (salesLog.length > 0 || isSyncing) {
+            event.preventDefault();
+            // 古いブラウザ向けに returnValue を設定（メッセージ内容はブラウザ規定のものが表示されます）
+            event.returnValue = ''; 
+        }
+    });
 
     init();
 </script>

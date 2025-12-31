@@ -51,8 +51,8 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
-        /* ★ スマホ専用の2段構成調整 ★ */
-        @media (max-width: 600px) {
+        /* ★ スマホ専用の2段構成調整 ★ (メディアクエリを480pxに変更) */
+        @media (max-width: 480px) {
             body { padding-top: 100px; }
             #fixed-header {
                 height: 100px;
@@ -550,7 +550,7 @@
             });
 
             const colWidth = getComputedStyle(document.documentElement).getPropertyValue('--col-width').trim();
-            const timeColWidth = (window.innerWidth <= 600) ? "50px" : "80px";
+            const timeColWidth = (window.innerWidth <= 480) ? "50px" : "80px"; // ここもメディアクエリに合わせて480pxに調整
             grid.style.gridTemplateColumns = `${timeColWidth} repeat(${venues.length}, ${colWidth})`;
             
             let html = `<div class="time-col"><div class="corner-cell"></div>`;
