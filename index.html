@@ -270,7 +270,7 @@
         .modal-content { background: #fff; padding: 25px; border-radius: 24px; width: 100%; max-width: 440px; position: relative; max-height: 90vh; overflow-y: auto; }
     </style>
 </head>
-<body class="updating">
+<body>
 
     <div id="full-loader">
         <div class="spinner"></div>
@@ -304,7 +304,7 @@
             <div class="home-right">
                 <div class="theme-label">79th KORYO-FES</div>
                 <h1 class="theme-title">今年のテーマ</h1>
-                <div class="theme-box"><span class="theme-word">テーマ</span><p class="theme-sub">サブテーマ</p></div>
+                <div class="theme-box"><span class="theme-word">Human</span><p class="theme-sub">すべての人類とは遍く人である</p></div>
                 
                 <div class="theme-box" style="margin-top:-10px; padding:15px; border-style:solid; border-width:2px;">
                     <span class="theme-word-timer" id="bus-timer">バス情報取得中...</span>
@@ -355,20 +355,35 @@
         </div>
     </div>
 
-    <script>
-        const API_URL = 'https://script.google.com/macros/s/AKfycbwTnET9tIVfvIvJxV8y-dEzQvAqt-Y24ynhO_SEqw5h5InxvVZ8qG6EmmMQnn1VBE1U/exec';
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // ご提示いただいたFirebase設定
+        const firebaseConfig = {
+          apiKey: "AIzaSyB93JqntLYJpyahEOv_YYm55cRFTUvLW4s",
+          authDomain: "koryo-nav.firebaseapp.com",
+          databaseURL: "https://koryo-nav-default-rtdb.asia-southeast1.firebasedatabase.app",
+          projectId: "koryo-nav",
+          storageBucket: "koryo-nav.firebasestorage.app",
+          messagingSenderId: "25221811726",
+          appId: "1:25221811726:web:6f091102a26a7b1fb0b65f",
+          measurementId: "G-0ZR1ZNC8Z0"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // --- 定数・初期設定 ---
         const CASHIER_URL = 'casher.html'; 
         const CASHIER_PW = "yL2Mj91Iab"; 
-
         const FLOOR_MAPS = { '1': 'Map_1.png', '2': 'Map_2.png', '3': 'Map_3.png' };
-        
         const START_H = 9, SCALE = 1.5, GAP = 3;
         const VENUE_THEMES = { 
             '体育館': { bg: '#FFCDD2', border: '#E53935' }, 
             '中庭ステージ': { bg: '#FFF9C4', border: '#FBC02D' }, 
             '武道場': { bg: '#C8E6C9', border: '#43A047' } 
         };
-
         const EVENT_LOCATIONS = [
             { name: '体育館', left: 85, top: 85, color: '#ef4444' },
             { name: '中庭ステージ', left: 4.5, top: 57, color: '#f59e0b' },
@@ -378,7 +393,53 @@
         let cache = { stores: [], timetable: [], announcement: "", bus: [], lostItems: [] };
         let failedAttempts = 0;
 
-        function parseTime(timeVal) {
+        // --- Firebase リアルタイム同期設定 ---
+
+        // 1. 店舗情報
+        onValue(ref(db, 'stores'), (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                cache.stores = data.map(s => [s.floor, s.name, s.desc, s.status, s.img, s.x, s.y]);
+                if (document.getElementById('stores-view').style.display === 'block') renderStores();
+            }
+        });
+
+        // 2. タイムテーブル
+        onValue(ref(db, 'timetable'), (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                cache.timetable = data.map(t => [t.venue, t.start, t.end, t.name, t.desc]);
+                if (document.getElementById('timetable-view').style.display === 'block') renderTimetable();
+            }
+        });
+
+        // 3. お知らせ
+        onValue(ref(db, 'announcement'), (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                cache.announcement = data.text;
+                document.querySelectorAll('.ann-text').forEach(el => el.textContent = cache.announcement);
+                document.querySelectorAll('.announcement-banner').forEach(b => b.style.display = data.text ? 'flex' : 'none');
+            }
+        });
+
+        // 4. 落とし物
+        onValue(ref(db, 'lost'), (snapshot) => {
+            const data = snapshot.val();
+            cache.lostItems = data ? data.map(l => [l.name, l.place, l.comment, l.img]) : [];
+            renderLostItems();
+        });
+
+        // 5. バスタイム
+        onValue(ref(db, 'bus'), (snapshot) => {
+            const data = snapshot.val();
+            cache.bus = data ? data.map(b => [b.time]) : [];
+            updateBusTimer();
+        });
+
+        // --- ロジック関数群 ---
+
+        window.parseTime = function(timeVal) {
             if (!timeVal) return null;
             const d = new Date(timeVal);
             if (!isNaN(d.getTime())) return { h: d.getHours(), m: d.getMinutes() };
@@ -390,7 +451,7 @@
             return null;
         }
 
-        function tryOpenCashier() {
+        window.tryOpenCashier = function() {
             if (failedAttempts >= 3) { alert("⚠パスワードの入力回数上限に達しました。"); return; }
             const pw = prompt(`パスワードを入力してください（生徒専用）\nあと ${3 - failedAttempts} 回入力可能です。`);
             if (pw === CASHIER_PW) { failedAttempts = 0; window.open(CASHIER_URL, '_blank'); }
@@ -400,7 +461,7 @@
             }
         }
 
-        function getStatusClass(status) {
+        window.getStatusClass = function(status) {
             if (status === "スムーズ") return "status-low";
             if (status === "やや混雑") return "status-mid";
             if (status === "激混み") return "status-high";
@@ -408,63 +469,7 @@
             return "status-low";
         }
 
-        function loadFromStorage() {
-            const saved = localStorage.getItem('fukousai_cache');
-            if (saved) { cache = JSON.parse(saved); return true; }
-            return false;
-        }
-
-        function saveToStorage() { localStorage.setItem('fukousai_cache', JSON.stringify(cache)); }
-
-        // 随時更新が必要なデータを再取得する関数
-        async function reloadAllData() {
-            document.body.classList.add('updating');
-            try {
-                const [resS, resB, resL] = await Promise.all([
-                    fetch(`${API_URL}?type=stores`),
-                    fetch(`${API_URL}?type=bus_timetable`), 
-                    fetch(`${API_URL}?type=lost`)
-                ]);
-                cache.stores = await resS.json();
-                cache.bus = await resB.json();
-                cache.lostItems = await resL.json();
-                
-                // タイムテーブルは通常固定ですが、初回の読み込みのみ取得します
-                if (cache.timetable.length === 0) {
-                    const resT = await fetch(`${API_URL}?type=timetable`);
-                    cache.timetable = await resT.json();
-                }
-
-                saveToStorage();
-                refreshCurrentView();
-                await quickUpdate();
-            } catch (e) { console.error("Reload failed", e); }
-            finally { document.body.classList.remove('updating'); }
-        }
-
-        async function quickUpdate() {
-            try {
-                const res = await fetch(`${API_URL}?type=quick`);
-                const data = await res.json();
-                if (data.announcement !== cache.announcement) {
-                    cache.announcement = data.announcement;
-                    document.querySelectorAll('.ann-text').forEach(t => t.textContent = cache.announcement);
-                    document.querySelectorAll('.announcement-banner').forEach(b => b.style.display = cache.announcement ? 'flex' : 'none');
-                }
-                saveToStorage();
-            } catch (e) { console.warn("Quick update failed", e); }
-        }
-
-        function refreshCurrentView() {
-            // 混雑状況の更新
-            if (document.getElementById('stores-view').style.display === 'block') renderStores();
-            // バスタイマーの更新
-            updateBusTimer();
-            // 落とし物リストの更新
-            renderLostItems();
-        }
-
-        function switchTab(tab) {
+        window.switchTab = function(tab) {
             ['home','stores','timetable'].forEach(v => {
                 const el = document.getElementById(v+'-view');
                 if (el) el.style.display = v === tab ? (v === 'home' ? 'flex' : 'block') : 'none';
@@ -477,7 +482,7 @@
             if (tab === 'home') renderLostItems();
         }
 
-        function renderStores() {
+        window.renderStores = function() {
             const container = document.getElementById('stores-content');
             if (!cache.stores || cache.stores.length === 0) return;
             const floors = [...new Set(cache.stores.map(r => r[0]))].sort();
@@ -494,34 +499,28 @@
             }).join('');
         }
 
-        function normalizeImageUrl(url) {
-            if (!url) return 'https://via.placeholder.com/300';
-            if (url.startsWith('http')) return url;
-            return `lost_images/${url}.jpg`; 
-        }
-
-        function renderLostItems() {
+        window.renderLostItems = function() {
             const container = document.getElementById('lost-items-grid');
             const section = document.getElementById('lost-items-section');
             if (!cache.lostItems || cache.lostItems.length === 0) { section.style.display = 'none'; return; }
             section.style.display = 'block';
             container.innerHTML = cache.lostItems.map(item => `
                 <div class="store-card" onclick='openLostModal(${JSON.stringify(item)})'>
-                    <div class="store-img-wrapper"><img src="${normalizeImageUrl(item[3])}" class="store-img"></div>
+                    <div class="store-img-wrapper"><img src="${item[3] || 'https://via.placeholder.com/300'}" class="store-img"></div>
                     <div class="store-name-tag">${item[0]}</div>
                 </div>
             `).join('');
         }
 
-        function openLostModal(item) {
+        window.openLostModal = function(item) {
             document.getElementById('m-title').textContent = item[0];
-            document.getElementById('m-img-container').innerHTML = item[3] ? `<img src="${normalizeImageUrl(item[3])}" style="width:100%; border-radius:12px;">` : '';
+            document.getElementById('m-img-container').innerHTML = item[3] ? `<img src="${item[3]}" style="width:100%; border-radius:12px;">` : '';
             document.getElementById('m-info').textContent = `📍発見場所: ${item[1]}`;
             document.getElementById('m-desc').textContent = item[2] || "心当たりのある方は、1F事務室または本部までお越しください。";
             document.getElementById('modal').style.display = 'flex';
         }
 
-        function updateBusTimer() {
+        window.updateBusTimer = function() {
             const timerEl = document.getElementById('bus-timer');
             const nextEl = document.getElementById('bus-next');
             if (!cache.bus || cache.bus.length === 0) return;
@@ -542,22 +541,7 @@
             }
         }
 
-        function scrollToVenue(venueName) {
-            const calendarArea = document.getElementById('calendar-scroll-target');
-            calendarArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            const headers = document.querySelectorAll('.venue-header');
-            let targetCol = null;
-            headers.forEach(h => { if(h.textContent.trim() === venueName) targetCol = h.parentElement; });
-            if (targetCol) {
-                calendarArea.scrollLeft = targetCol.offsetLeft - 80;
-                const now = new Date(), m = (now.getHours() - START_H) * 60 + now.getMinutes();
-                if (m >= 0 && m < 480) {
-                    window.scrollTo({ top: targetCol.getBoundingClientRect().top + window.scrollY + (m * SCALE), behavior: 'smooth' });
-                }
-            }
-        }
-
-        function renderTimetable() {
+        window.renderTimetable = function() {
             const data = cache.timetable;
             const grid = document.getElementById('timetable-grid');
             if (!data || data.length === 0) return;
@@ -571,11 +555,6 @@
                 pin.style.left = `${loc.left}%`; pin.style.top = `${loc.top}%`;
                 if(loc.color) pin.style.backgroundColor = loc.color;
                 pin.textContent = loc.name; pin.onclick = () => scrollToVenue(loc.name);
-                const pinId = "pin-" + loc.name.replace(/\s+/g, '');
-                pin.classList.add(pinId);
-                const style = document.createElement('style');
-                style.innerHTML = `.${pinId}::after { border-top-color: ${loc.color || 'var(--accent)'}; }`;
-                document.head.appendChild(style);
                 mapContainer.appendChild(pin);
             });
 
@@ -604,7 +583,7 @@
             updateNowLine();
         }
 
-        function updateNowLine() {
+        window.updateNowLine = function() {
             const line = document.getElementById('now-line');
             if (!line) return;
             const now = new Date(), m = (now.getHours() - START_H) * 60 + now.getMinutes();
@@ -612,7 +591,7 @@
             else { line.style.display = 'none'; }
         }
 
-        function openEventModal(ev) {
+        window.openEventModal = function(ev) {
             const s = new Date(ev[1]), e = new Date(ev[2]);
             document.getElementById('m-title').textContent = ev[3];
             document.getElementById('m-img-container').innerHTML = '';
@@ -622,37 +601,25 @@
             document.getElementById('modal').style.display = 'flex';
         }
 
-        function openStoreModal(s) {
-            document.getElementById('m-title').textContent = s[1];
-            document.getElementById('m-img-container').innerHTML = s[4] ? `<img src="${s[4]}" style="width:100%; border-radius:12px;">` : '';
-            document.getElementById('m-info').textContent = `📍場所: ${s[0]}F / 🚥混雑: ${s[3]}`;
-            document.getElementById('m-desc').textContent = s[2] || '紹介文なし';
+        window.openStoreModal = function(s) {
+            const store = Array.isArray(s) ? { floor: s[0], name: s[1], desc: s[2], status: s[3], img: s[4] } : s;
+            document.getElementById('m-title').textContent = store.name;
+            document.getElementById('m-img-container').innerHTML = store.img ? `<img src="${store.img}" style="width:100%; border-radius:12px;">` : '';
+            document.getElementById('m-info').textContent = `📍場所: ${store.floor}F / 🚥混雑: ${store.status}`;
+            document.getElementById('m-desc').textContent = store.desc || '紹介文なし';
             document.getElementById('modal').style.display = 'flex';
         }
 
-        async function init() {
-            const hasCache = loadFromStorage();
-            if (hasCache) {
-                document.getElementById('full-loader').style.display = 'none';
-                document.body.classList.remove('updating');
-                refreshCurrentView();
-            }
-            
-            // 初回データ取得
-            await reloadAllData();
-
+        // --- 初期化 ---
+        window.onload = () => {
             const loader = document.getElementById('full-loader');
             loader.style.opacity = '0';
             setTimeout(() => loader.style.display = 'none', 500);
 
-            // 【重要】10秒ごとに全データの「随時更新」を開始
-            setInterval(reloadAllData, 10000); 
-
-            // その他の時計・表示用タイマー
+            // 定時更新が必要な表示処理のみ実行（通信はFirebaseが自動でやる）
             setInterval(updateNowLine, 60000);
             setInterval(updateBusTimer, 30000);
-        }
-        window.onload = init;
+        };
     </script>
 </body>
 </html>
